@@ -1,0 +1,26 @@
+{
+  "name": "virtual-window",
+  "version": "0.0.1",
+  "description": "An interactive \"window\" using head-tracking in the browser",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rjkilpatrick/virtual-window.git"
+  },
+  "keywords": [
+    "js",
+    "ar"
+  ],
+  "author": "rjkilpatrick",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rjkilpatrick/virtual-window/issues"
+  },
+  "homepage": "https://github.com/rjkilpatrick/virtual-window#readme",
+  "dependencies": {
+    "three": "^0.131.3"
+  }
+}
