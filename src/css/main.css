@@ -1,0 +1,43 @@
+html {
+  box-sizing: border-box;
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+body {
+  /* remove margins and scroll bars */
+  margin: 0;
+  overflow: hidden;
+
+  height: 100vh;
+
+  /* style text */
+  text-align: center;
+  font-size: 12px;
+  font-family: "Ubuntu", "Open Sans", Sans-Serif;
+
+}
+
+h1 {
+  /* position the heading */
+  width: 100%;
+  position: absolute;
+  color: white;
+
+  /* make sure that the heading is drawn on top */
+  z-index: 1;
+}
+
+#c {
+  /* tell our scene container to take up the full page */
+  width: 100%;
+  height: 100%;
+
+  /*
+    Set the container's background color to the same as the scene's
+    background to prevent flashing on load
+  */
+  background-color: skyblue;
+}
