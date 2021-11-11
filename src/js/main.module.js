@@ -1,22 +1,22 @@
-import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r127/build/three.module.js';
+import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js';
 
+// of the video tag. This is a minimum working environment.
 let poses = [
     {
         pose: {
             leftEye: {
-                x: 28.170260095410782,
-                y: 115.84622294058595,
+                x: 28.0,
+                y: 115.0,
             },
             rightEye: {
-                x: 50.06473260352584,
-                y: 114.29153611223984,
-                confidence: 0.9995846152305603
+                x: 50.0,
+                y: 114.0,
             },
         }
     }
 ];
 
-const lookSensitivity = 0.005;
+const lookSensitivity = 0.2;
 
 const modelOptions = {
     flipHorizontal: false,
@@ -31,18 +31,25 @@ function setupPoseNet(video) {
     });
     // This sets up an event that fills the global variable "poses"
     // with an array every time new poses are detected
-    poseNet.on("pose", function (results) {
+    poseNet.on("pose", (results) => {
         poses = results;
         console.log(eyePoseEstimation());
     });
 }
 
 function eyePoseEstimation() {
-    if ((poses.length >= 1) && (poses[0].pose)) {
-        return [[poses[0].pose.leftEye.x, poses[0].pose.leftEye.y],
-        [poses[0].pose.rightEye.x, poses[0].pose.rightEye.y]];
+    if (poses && (poses.length >= 1) && (poses[0].pose)) {
+        const pose = poses[0].pose;
+
+        // Change from 0 -> max, to [-1, +1]
+        const normalize = (position, maximum) => (position / (0.5 * maximum)) - 1;
+
+        const leftEye = new THREE.Vector2(normalize(pose.leftEye.x, cameraWidth), normalize(pose.leftEye.y, cameraHeight));
+        const rightEye = new THREE.Vector2(normalize(pose.rightEye.x, cameraWidth), normalize(pose.rightEye.y, cameraHeight));
+
+        return [leftEye, rightEye];
     }
-    return []
+    return [];
 }
 
 function main() {
@@ -53,30 +60,53 @@ function main() {
     // Scene
     const scene = new THREE.Scene();
 
-    // Light
+    // Ambient light
+    {
+        const color = 0xFFFFFF;
+        const intensity = 0.2;
+        const light = new THREE.AmbientLight(color, intensity);
+        scene.add(light);
+    }
+
+    // Directional Light
     {
         const color = 0xFFFFFF;
         const intensity = 1;
         const light = new THREE.DirectionalLight(color, intensity);
+        light.castShadow = true;
         light.position.set(-1, 2, 4);
         scene.add(light);
+        
+        // light.target.position.set(0, 0, 0);
+        // scene.add(light.target);
     }
 
-    // Box
+    // Walls
     {
         const boxWidth = 1;
         const boxHeight = 1;
-        const boxDepth = 1;
+        const boxDepth = 0.7;
         const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0xDDDDDD,   // greenish blue
+            side: THREE.BackSide,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(0, 0, 0);
+        mesh.receiveShadow = true;
 
-        // Material
+        scene.add(mesh);
+    }
+
+    // Item of interest
+    {
+        const cubeSize = 0.05;
+        const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
         const material = new THREE.MeshPhongMaterial({ color: 0x44aa88 });  // greenish blue
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(0, 0, 0);
 
-        // Mesh (geometry + material)
-        const cube = new THREE.Mesh(geometry, material);
-
-        // Append mesh to scene
-        scene.add(cube);
+        scene.add(mesh);
     }
 
     // Perspective Camera
@@ -100,7 +130,7 @@ function main() {
 
     // Render loop
     function render(time_elapsed /* in milliseconds */) {
-        let locations = eyePoseEstimation();
+        let [leftEye, rightEye] = eyePoseEstimation();
 
         // Resize
         if (rendererNeedsResize(renderer)) {
@@ -108,9 +138,15 @@ function main() {
             camera.updateProjectionMatrix();
         }
 
-        if ((locations.length >= 1) && (locations[0].length >= 1)) {
-            camera.position.x = lookSensitivity * locations[0][0];
-            camera.position.y = lookSensitivity * locations[0][1];
+        if (leftEye && rightEye) {
+
+            camera.position.x = lookSensitivity * 0.5 * -(leftEye.x + rightEye.x);
+            camera.position.y = lookSensitivity * 0.5 * -(leftEye.y + rightEye.y);
+            camera.position.z = 0.3;
+
+            // camera.position.set(estimateCameraPosition(eyePoseEstimation()));
+                
+            camera.lookAt(0, 0, 0);
         }
 
         renderer.render(scene, camera);
@@ -120,28 +156,29 @@ function main() {
     requestAnimationFrame(render);
 }
 
+const cameraWidth = 320;
+const cameraHeight = 240;
+
+
 (function () {
     // Downsample image to this size
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    const cam_video = document.createElement("video");
-
-    const cam_width = 120;
-    const cam_height = 180;
+    const cameraVideo = document.createElement("video");
 
     let streaming = false;
 
-    cam_video.addEventListener('canplay', function (ev) {
+    cameraVideo.addEventListener('canplay', function (ev) {
         if (!streaming) {
-            cam_video.setAttribute('width', cam_width);
-            cam_video.setAttribute('height', cam_height);
-            canvas.setAttribute('width', cam_width);
-            canvas.setAttribute('height', cam_height);
+            cameraVideo.setAttribute('width', cameraWidth);
+            cameraVideo.setAttribute('height', cameraHeight);
+            canvas.setAttribute('width', cameraWidth);
+            canvas.setAttribute('height', cameraHeight);
             streaming = true;
         }
     }, false);
 
-    async function init_webcam() {
+    async function initWebcam() {
         const constraints = { video: true }; // TODO: Fix facingMode
 
         navigator.mediaDevices.getUserMedia(constraints)
@@ -156,11 +193,11 @@ function main() {
     function handleHasWebcam(stream) {
         ctx.transform(-1, 0, 0, 1, canvas.width, 0);
 
-        cam_video.srcObject = stream;
-        cam_video.play();
+        cameraVideo.srcObject = stream;
+        cameraVideo.play();
     }
 
-    init_webcam();
+    initWebcam();
 
-    setupPoseNet(cam_video);
+    setupPoseNet(cameraVideo);
 })();
