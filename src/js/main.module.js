@@ -1,5 +1,17 @@
 import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/build/three.module.js';
 
+import { GLTFLoader } from 'https://threejsfundamentals.org/threejs/resources/threejs/r132/examples/jsm/loaders/GLTFLoader.js';
+
+const lookSensitivity = 0.2;
+const modelOptions = {
+    flipHorizontal: false,
+    maxPoseDetections: 1,
+}
+
+const cameraWidth = 320;
+const cameraHeight = 240;
+
+// Global variable of poses updated when the model runs, set by the video rate
 // of the video tag. This is a minimum working environment.
 let poses = [
     {
@@ -16,24 +28,16 @@ let poses = [
     }
 ];
 
-const lookSensitivity = 0.2;
-
-const modelOptions = {
-    flipHorizontal: false,
-    maxPoseDetections: 1,
-}
-
 function setupPoseNet(video) {
     // Create a new poseNet method with a single detection
     const poseNet = ml5.poseNet(video, modelOptions, () => {
-        console.log("Model loaded");
+        console.log("PoseNet loaded");
         main();
     });
     // This sets up an event that fills the global variable "poses"
     // with an array every time new poses are detected
     poseNet.on("pose", (results) => {
         poses = results;
-        console.log(eyePoseEstimation());
     });
 }
 
@@ -55,7 +59,7 @@ function eyePoseEstimation() {
 function main() {
     // Handles to canvas
     const canvas = document.querySelector("#c");
-    const renderer = new THREE.WebGLRenderer({ canvas });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 
     // Scene
     const scene = new THREE.Scene();
@@ -76,23 +80,23 @@ function main() {
         light.castShadow = true;
         light.position.set(-1, 2, 4);
         scene.add(light);
-        
-        // light.target.position.set(0, 0, 0);
-        // scene.add(light.target);
+
+        light.target.position.set(0, 0, 0);
+        scene.add(light.target);
     }
 
     // Walls
     {
-        const boxWidth = 1;
-        const boxHeight = 1;
-        const boxDepth = 0.7;
+        const boxWidth = .5;
+        const boxHeight = .5;
+        const boxDepth = 1.;
         const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
-        const material = new THREE.MeshPhongMaterial({
-            color: 0xDDDDDD,   // greenish blue
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xFFFFFF,
             side: THREE.BackSide,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(0, 0, 0);
+        mesh.position.set(0, 0, 0.25);
         mesh.receiveShadow = true;
 
         scene.add(mesh);
@@ -100,23 +104,29 @@ function main() {
 
     // Item of interest
     {
-        const cubeSize = 0.05;
-        const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-        const material = new THREE.MeshPhongMaterial({ color: 0x44aa88 });  // greenish blue
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(0, 0, 0);
+        const gltfLoader = new GLTFLoader();
 
-        scene.add(mesh);
+        const url = '/assets/lucy/lucy.gltf';
+        gltfLoader.load(url, (gltf) => {
+            const lucy = gltf.scene;
+            lucy.position.set(0, -0.25, 0);
+            lucy.scale.set(0.2, 0.2, 0.2);
+            scene.add(lucy);
+            console.log("Lucy added");
+        },
+            undefined, (error) => {
+                console.error(error);
+            });
     }
 
     // Perspective Camera
     const fov = 75;
     const aspect_ratio = 2.;
-    const near_clip = 0.1;
-    const far_clip = 5.;
+    const near_clip = 0.01;
+    const far_clip = 50.;
     const camera = new THREE.PerspectiveCamera(fov, aspect_ratio, near_clip, far_clip);
 
-    camera.position.z = 2;
+    camera.position.z = 20;
 
     function rendererNeedsResize(renderer) {
         const width = canvas.clientWidth;
@@ -142,10 +152,10 @@ function main() {
 
             camera.position.x = lookSensitivity * 0.5 * -(leftEye.x + rightEye.x);
             camera.position.y = lookSensitivity * 0.5 * -(leftEye.y + rightEye.y);
-            camera.position.z = 0.3;
+            camera.position.z = 0.5; // Eye-(0, 0, 0) distance
 
             // camera.position.set(estimateCameraPosition(eyePoseEstimation()));
-                
+
             camera.lookAt(0, 0, 0);
         }
 
@@ -156,25 +166,21 @@ function main() {
     requestAnimationFrame(render);
 }
 
-const cameraWidth = 320;
-const cameraHeight = 240;
-
-
 (function () {
-    // Downsample image to this size
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    // Resize image to small size
+    const cameraCanvas = document.createElement("canvas");
+    const cameraCanvasCtx = cameraCanvas.getContext("2d");
     const cameraVideo = document.createElement("video");
 
-    let streaming = false;
+    let isStreaming = false;
 
     cameraVideo.addEventListener('canplay', function (ev) {
-        if (!streaming) {
+        if (!isStreaming) {
             cameraVideo.setAttribute('width', cameraWidth);
             cameraVideo.setAttribute('height', cameraHeight);
-            canvas.setAttribute('width', cameraWidth);
-            canvas.setAttribute('height', cameraHeight);
-            streaming = true;
+            cameraCanvas.setAttribute('width', cameraWidth);
+            cameraCanvas.setAttribute('height', cameraHeight);
+            isStreaming = true;
         }
     }, false);
 
@@ -191,7 +197,7 @@ const cameraHeight = 240;
     }
 
     function handleHasWebcam(stream) {
-        ctx.transform(-1, 0, 0, 1, canvas.width, 0);
+        cameraCanvasCtx.transform(-1, 0, 0, 1, cameraCanvas.width, 0);
 
         cameraVideo.srcObject = stream;
         cameraVideo.play();

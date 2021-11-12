@@ -1,5 +1,7 @@
 # Virtual Window
 
+![Screenshot of program](assets/img/Screenshot.png)
+
 This project was inspired by a cool [blog post](https://charliegerard.dev/blog/interactive-frame-head-tracking/).
 
 ## How?
@@ -9,5 +11,8 @@ We use the head position relative to the camera to update the camera projection 
 Alternatively, we could update the camera position, but I don't want to be estimating head depth at the moment.
 
 ## License
+
+Lucy model adapted from [Princeton Suggestive Contour Gallery
+](https://gfx.cs.princeton.edu/proj/sugcon/models/), originally from [Stanford 3D scanning respository](https://graphics.stanford.edu/data/3Dscanrep/).
 
 [MIT](./LICENSE)
