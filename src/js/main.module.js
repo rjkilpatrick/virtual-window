@@ -106,7 +106,7 @@ function main() {
     {
         const gltfLoader = new GLTFLoader();
 
-        const url = '/assets/lucy/lucy.gltf';
+        const url = './assets/lucy/lucy.gltf';
         gltfLoader.load(url, (gltf) => {
             const lucy = gltf.scene;
             lucy.position.set(0, -0.25, 0);
